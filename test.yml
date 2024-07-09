@@ -1,15 +1,26 @@
+name: Playwright Test
+on: [push]
+
 jobs:
-  tests_e2e:
-    name: Run end-to-end tests
+  report_to_slack:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run Playwright tests
+        run: PLAYWRIGHT_JSON_OUTPUT_NAME=report/report.json npx playwright test --reporter=json
+      - name: Upload report to GitHub Actions Artifacts
+        id: report-upload-step
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
-          node-version: '16' # ou a versão do Node.js que você está usando
-      - name: Install dependencies
-        run: npm ci
-      - name: Install playwright browsers
-        run: npx playwright install --with-deps
-      - name: Run tests
-        run: npx playwright test
+          name: report
+          path: report/
+          retention-days: 30
+      - name: Report to slack
+        uses: kenfdev/playwright-report-slack-action
+        with:
+          results-json-path: 'report.json'
+          artifact-url: ${{ steps.report-upload-step.outputs.artifact-url }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
